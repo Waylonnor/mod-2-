@@ -1,117 +1,66 @@
-import {useState, useEffect} from "react";
-import {ethers} from "ethers";
-import atm_abi from "../artifacts/contracts/Assessment.sol/Assessment.json";
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.9;
 
-export default function HomePage() {
-  const [ethWallet, setEthWallet] = useState(undefined);
-  const [account, setAccount] = useState(undefined);
-  const [atm, setATM] = useState(undefined);
-  const [balance, setBalance] = useState(undefined);
+contract Assessment {
+    address payable public owner;
+    uint256 public balance;
 
-  const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-  const atmABI = atm_abi.abi;
+    event Deposit(uint256 amount);
+    event Withdraw(uint256 amount);
 
-  const getWallet = async() => {
-    if (window.ethereum) {
-      setEthWallet(window.ethereum);
+    constructor(uint initBalance) payable {
+        owner = payable(msg.sender);
+        balance = initBalance;
     }
 
-    if (ethWallet) {
-      const account = await ethWallet.request({method: "eth_accounts"});
-      handleAccount(account);
-    }
-  }
-
-  const handleAccount = (account) => {
-    if (account) {
-      console.log ("Account connected: ", account);
-      setAccount(account);
-    }
-    else {
-      console.log("No account found");
-    }
-  }
-
-  const connectAccount = async() => {
-    if (!ethWallet) {
-      alert('MetaMask wallet is required to connect');
-      return;
-    }
-  
-    const accounts = await ethWallet.request({ method: 'eth_requestAccounts' });
-    handleAccount(accounts);
-    
-    // once wallet is set we can get a reference to our deployed contract
-    getATMContract();
-  };
-
-  const getATMContract = () => {
-    const provider = new ethers.providers.Web3Provider(ethWallet);
-    const signer = provider.getSigner();
-    const atmContract = new ethers.Contract(contractAddress, atmABI, signer);
- 
-    setATM(atmContract);
-  }
-
-  const getBalance = async() => {
-    if (atm) {
-      setBalance((await atm.getBalance()).toNumber());
-    }
-  }
-
-  const deposit = async() => {
-    if (atm) {
-      let tx = await atm.deposit(1);
-      await tx.wait()
-      getBalance();
-    }
-  }
-
-  const withdraw = async() => {
-    if (atm) {
-      let tx = await atm.withdraw(1);
-      await tx.wait()
-      getBalance();
-    }
-  }
-
-  const initUser = () => {
-    // Check to see if user has Metamask
-    if (!ethWallet) {
-      return <p>Please install Metamask in order to use this ATM.</p>
+    function getBalance() public view returns(uint256){
+        return balance;
     }
 
-    // Check to see if user is connected. If not, connect to their account
-    if (!account) {
-      return <button onClick={connectAccount}>Please connect your Metamask wallet</button>
+    function deposit(uint256 _amount) public payable {
+        uint _previousBalance = balance;
+        require(msg.sender == owner, "You are not the owner of this account");
+        balance += _amount;
+        assert(balance == _previousBalance + _amount);
+        emit Deposit(_amount);
     }
 
-    if (balance == undefined) {
-      getBalance();
-    }
+    error InsufficientBalance(uint256 balance, uint256 withdrawAmount);
 
-    return (
-      <div>
-        <p>Your Account: {account}</p>
-        <p>Your Balance: {balance}</p>
-        <button onClick={deposit}>Deposit 1 ETH</button>
-        <button onClick={withdraw}>Withdraw 1 ETH</button>
-      </div>
-    )
-  }
-
-  useEffect(() => {getWallet();}, []);
-
-  return (
-    <main className="container">
-      <header><h1>Welcome to the Metacrafters ATM!</h1></header>
-      {initUser()}
-      <style jsx>{`
-        .container {
-          text-align: center
+    function withdraw(uint256 _withdrawAmount) public {
+        require(msg.sender == owner, "You are not the owner of this account");
+        uint _previousBalance = balance;
+        if (balance < _withdrawAmount) {
+            revert InsufficientBalance({
+                balance: balance,
+                withdrawAmount: _withdrawAmount
+            });
         }
-      `}
-      </style>
-    </main>
-  )
+        balance -= _withdrawAmount;
+        assert(balance == (_previousBalance - _withdrawAmount));
+        emit Withdraw(_withdrawAmount);
+    }
+
+    function checkLoanEligibility(uint256 _creditScore) public pure returns(uint256) {
+        if (_creditScore > 720) {
+            return 10000;
+        } else if (_creditScore > 700) {
+            return 7000;
+        } else if (_creditScore > 600) {
+            return 6000;
+        } else if (_creditScore > 400) {
+            return 5000;
+        } else {
+            return 0;
+        }
+    }
+    
+    function viewLoanBrochure() public pure returns (string memory) {
+        string memory brochure = "Loan Details:\n";
+        brochure = string(abi.encodePacked(brochure, "If your credit score is above 720, you are eligible for a loan of $10,000.\n"));
+        brochure = string(abi.encodePacked(brochure, "If your credit score is above 700, you are eligible for a loan of $7,000.\n"));
+        brochure = string(abi.encodePacked(brochure, "If your credit score is above 600, you are eligible for a loan of $6,000.\n"));
+        brochure = string(abi.encodePacked(brochure, "If your credit score is above 500, you are eligible for a loan of $5,000.\n"));
+        return brochure;
+    }
 }
