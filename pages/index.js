@@ -60,7 +60,7 @@ contract Assessment {
         brochure = string(abi.encodePacked(brochure, "If your credit score is above 720, you are eligible for a loan of $10,000.\n"));
         brochure = string(abi.encodePacked(brochure, "If your credit score is above 700, you are eligible for a loan of $7,000.\n"));
         brochure = string(abi.encodePacked(brochure, "If your credit score is above 600, you are eligible for a loan of $6,000.\n"));
-        brochure = string(abi.encodePacked(brochure, "If your credit score is above 500, you are eligible for a loan of $5,000.\n"));
+        brochure = string(abi.encodePacked(brochure, "If your credit score is above 400, you are eligible for a loan of $5,000.\n"));
         return brochure;
     }
 }
